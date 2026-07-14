@@ -19,12 +19,14 @@ const SETTINGS = {
   gravity: 0.5,          // how fast the player falls (bigger = falls faster)
   jumpPower: -11,        // how high the player jumps (more negative = higher)
   moveSpeed: 4,          // left/right speed
-  platformWidth: 60,
+  platformWidth: 70,
   platformHeight: 14,
   platformGap: 80,       // vertical space between platforms (bigger = harder)
   towerHeight: 4000,     // how tall the tower is in pixels (the "win" height)
-  playerColor: "#ff6b6b",
-  platformColor: "#6bff95",
+  playerColor: "#7b0086",
+  platformColor: "#001aff",
+  lavaRiseSpeed: 0.6,     // how fast the lava rises each frame (bigger = less time to dawdle)
+  lavaColor: "#ff7b00",
 };
 
 
@@ -45,6 +47,7 @@ let gameOver = false;
 let gameWon = false;
 let platforms = [];
 let player;
+let lavaY = 0;          // world y-position of the lava's surface (rises over time)
 
 const keys = {}; // tracks which keys are currently held down
 
@@ -76,6 +79,28 @@ function drawPlatforms() {
     if (screenY > -20 && screenY < canvas.height + 20) {
       ctx.fillRect(p.x, screenY, p.width, p.height);
     }
+  }
+}
+
+
+// ---------------------------------------------------------
+// 3b. LAVA
+// ---------------------------------------------------------
+// The lava's y-position steadily decreases (which means it rises,
+// since smaller y = higher up in our world). If the player doesn't
+// keep climbing, the lava eventually catches up to them.
+function updateLava() {
+  lavaY -= SETTINGS.lavaRiseSpeed;
+}
+
+function drawLava() {
+  const screenY = lavaY - cameraY;
+  if (screenY < canvas.height) {
+    const gradient = ctx.createLinearGradient(0, screenY, 0, screenY + 40);
+    gradient.addColorStop(0, "#ffcc00");
+    gradient.addColorStop(1, SETTINGS.lavaColor);
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, screenY, canvas.width, canvas.height - screenY);
   }
 }
 
@@ -146,6 +171,11 @@ function updatePlayer() {
   if (player.y - cameraY > canvas.height + 60) {
     endGame(false);
   }
+
+  // --- lose condition: the lava caught up to the player ---
+  if (player.y + player.height > lavaY) {
+    endGame(false, true); // true = died in lava
+  }
 }
 
 function jump() {
@@ -170,7 +200,9 @@ function gameLoop() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
   updatePlayer();
+  updateLava();
   drawPlatforms();
+  drawLava();
   drawPlayer();
   updateScoreDisplay();
 
@@ -197,12 +229,18 @@ document.addEventListener("keyup", (e) => {
 // ---------------------------------------------------------
 // 7. WIN / LOSE
 // ---------------------------------------------------------
-function endGame(won) {
+function endGame(won, diedInLava) {
   gameOver = true;
   gameWon = won;
 
   const height = Math.max(0, Math.floor(-cameraY / 10));
-  overlayTitle.textContent = won ? "You Reached the Top! 🎉" : "You Fell! 💥";
+  if (won) {
+    overlayTitle.textContent = "You Reached the Top! 🎉";
+  } else if (diedInLava) {
+    overlayTitle.textContent = "Swallowed by Lava! 🌋";
+  } else {
+    overlayTitle.textContent = "You Fell! 💥";
+  }
   overlayScore.textContent = `Height: ${height}m`;
   overlay.classList.remove("hidden");
 }
@@ -211,6 +249,9 @@ function startGame() {
   cameraY = 0;
   gameOver = false;
   gameWon = false;
+  // Start the lava a bit below the bottom of the screen, giving the
+  // player a few seconds' head start before it becomes a threat.
+  lavaY = canvas.height + 150;
   overlay.classList.add("hidden");
   createPlatforms();
   createPlayer();
