@@ -17,12 +17,12 @@
 // ---------------------------------------------------------
 const SETTINGS = {
   gravity: 0.5,          // how fast the player falls (bigger = falls faster)
-  jumpPower: -13,        // how high
+  jumpPower: 40,        // how high
 crackedChance: 0.3,   // raise to 0.6 for way more cracked platforms, or 0.1 for rare ones
 crackTime: 45,        // lower to 20 for platforms that break almost instantlycrackedColor: "#000000",   // the color BEFORE it's about to break
 brokenColor: "#ff0000",    // the color right before it disappearsh the player jumps (more negative = higher)
   moveSpeed: 4,          // left/right speed
-  platformWidth: 50,fireballInterval: 90,   // lower = fireballs come more often (try 50 for chaos!)
+  platformWidth: 70,fireballInterval: 90,   // lower = fireballs come more often (try 50 for chaos!)
 fireballSpeed: 3,       // higher = faster, harder to dodge
 fireballSize: 16,       // bigger = harder to avoid
 fireballColor: "#ff9900",
