@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Tower Climber</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <div id="game-container">
+    <h1>Tower Climber 🗼</h1>
+    <p id="instructions">Arrow keys (or A / D) to move &nbsp;|&nbsp; Spacebar to jump</p>
+
+    <canvas id="gameCanvas" width="400" height="600"></canvas>
+
+    <div id="overlay" class="hidden">
+      <h2 id="overlayTitle">You Fell!</h2>
+      <p id="overlayScore">Height: 0m</p>
+      <button id="restartBtn">Try Again</button>
+    </div>
+
+    <p id="scoreDisplay">Height: 0m</p>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
