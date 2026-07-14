@@ -19,7 +19,7 @@ const SETTINGS = {
   gravity: 0.5,          // how fast the player falls (bigger = falls faster)
   jumpPower: -11,        // how high the player jumps (more negative = higher)
   moveSpeed: 4,          // left/right speed
-  platformWidth: 70,
+  platformWidth: 60,
   platformHeight: 14,
   platformGap: 80,       // vertical space between platforms (bigger = harder)
   towerHeight: 4000,     // how tall the tower is in pixels (the "win" height)
