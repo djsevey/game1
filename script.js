@@ -17,22 +17,24 @@
 // ---------------------------------------------------------
 const SETTINGS = {
   gravity: 0.5,          // how fast the player falls (bigger = falls faster)
-  jumpPower: 40,        // how high
-crackedChance: 0.3,   // raise to 0.6 for way more cracked platforms, or 0.1 for rare ones
-crackTime: 45,        // lower to 20 for platforms that break almost instantlycrackedColor: "#000000",   // the color BEFORE it's about to break
-brokenColor: "#ff0000",    // the color right before it disappearsh the player jumps (more negative = higher)
+  jumpPower: -30,        // how high the player jumps (more negative = higher)
   moveSpeed: 4,          // left/right speed
-  platformWidth: 70,fireballInterval: 90,   // lower = fireballs come more often (try 50 for chaos!)
-fireballSpeed: 3,       // higher = faster, harder to dodge
-fireballSize: 16,       // bigger = harder to avoid
-fireballColor: "#ff9900",
+  platformWidth: 70,
   platformHeight: 14,
-  platformGap: 60,       // vertical space between platforms (bigger = harder)
+  platformGap: 80,       // vertical space between platforms (bigger = harder)
   towerHeight: 4000,     // how tall the tower is in pixels (the "win" height)
-  playerColor: "#7b0086",
-  platformColor: "#001aff",
+  playerColor: "#ff6b6b",
+  platformColor: "#6bff95",
   lavaRiseSpeed: 0.6,     // how fast the lava rises each frame (bigger = less time to dawdle)
-  lavaColor: "#ff7b00",
+  lavaColor: "#ff3300",
+  crackedChance: 0.3,     // chance (0 to 1) that a platform is cracked
+  crackTime: 45,          // frames you can stand on a cracked platform before it breaks (60 frames = 1 second)
+  crackedColor: "#c98a4b",
+  brokenColor: "#5c3a21",
+  fireballInterval: 90,   // frames between fireball spawns (smaller = more frequent)
+  fireballSpeed: 3,       // how fast fireballs fly across the screen
+  fireballSize: 16,       // radius of each fireball
+  fireballColor: "#ff9900",
 };
 
 
