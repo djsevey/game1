@@ -17,26 +17,24 @@
 // ---------------------------------------------------------
 const SETTINGS = {
   gravity: 0.5,          // how fast the player falls (bigger = falls faster)
-  jumpPower: -30,        // how high the player jumps (more negative = higher)
+  jumpPower: -12,        // how high the player jumps (more negative = higher)
   moveSpeed: 4,          // left/right speed
   platformWidth: 70,
   platformHeight: 14,
-  platformGap: 80,       // vertical space between platforms (bigger = harder)
+  platformGap: 60,       // vertical space between platforms (bigger = harder)
   towerHeight: 4000,     // how tall the tower is in pixels (the "win" height)
-  playerColor: "#ff6b6b",
-  platformColor: "#6bff95",
+  platformColor: "#430cdb",
   lavaRiseSpeed: 0.6,     // how fast the lava rises each frame (bigger = less time to dawdle)
-  lavaColor: "#ff3300",
+  lavaColor: "#d4350e",
   crackedChance: 0.3,     // chance (0 to 1) that a platform is cracked
   crackTime: 45,          // frames you can stand on a cracked platform before it breaks (60 frames = 1 second)
-  crackedColor: "#c98a4b",
-  brokenColor: "#5c3a21",
+  crackedColor: "#ff0000",
+  brokenColor: "#000000",
   fireballInterval: 90,   // frames between fireball spawns (smaller = more frequent)
   fireballSpeed: 3,       // how fast fireballs fly across the screen
   fireballSize: 16,       // radius of each fireball
-  fireballColor: "#ff9900",
+  fireballColor: "#ff9900"
 };
-
 
 // ---------------------------------------------------------
 // 2. SETUP
@@ -56,8 +54,16 @@ let gameWon = false;
 let platforms = [];
 let player;
 let lavaY = 0;          // world y-position of the lava's surface (rises over time)
+let fireballs = [];     // list of fireballs currently flying across the tower
+let fireballTimer = 0;  // counts frames until the next fireball spawns
 
 const keys = {}; // tracks which keys are currently held down
+
+// The frog sprite image - loaded once here so it's ready to draw.
+// If you rename the file or move it into a folder, update this path
+// (e.g. "assets/frog.png").
+const frogImage = new Image();
+frogImage.src = "frog.png";
 
 
 // ---------------------------------------------------------
@@ -66,25 +72,37 @@ const keys = {}; // tracks which keys are currently held down
 function createPlatforms() {
   platforms = [];
 
-  // A wide starting platform right under the player
-  platforms.push({ x: canvas.width / 2 - 40, y: canvas.height - 30, width: 80, height: SETTINGS.platformHeight });
+  // A wide starting platform right under the player - always solid,
+  // so the player has a safe place to begin.
+  platforms.push({
+    x: canvas.width / 2 - 40, y: canvas.height - 30, width: 80, height: SETTINGS.platformHeight,
+    type: "normal", standTime: 0, broken: false,
+  });
 
   // Stack platforms going up to the top of the tower, alternating
   // left/right so the player has to actually move to climb.
   let y = canvas.height - 30 - SETTINGS.platformGap;
   while (y > -SETTINGS.towerHeight) {
     const x = Math.random() * (canvas.width - SETTINGS.platformWidth);
-    platforms.push({ x, y, width: SETTINGS.platformWidth, height: SETTINGS.platformHeight });
+    const type = Math.random() < SETTINGS.crackedChance ? "cracked" : "normal";
+    platforms.push({ x, y, width: SETTINGS.platformWidth, height: SETTINGS.platformHeight, type, standTime: 0, broken: false });
     y -= SETTINGS.platformGap;
   }
 }
 
 function drawPlatforms() {
-  ctx.fillStyle = SETTINGS.platformColor;
   for (const p of platforms) {
+    if (p.broken) continue; // broken platforms are gone - don't draw them
+
     const screenY = p.y - cameraY;
-    // Only draw platforms that are actually visible (a little optimization)
     if (screenY > -20 && screenY < canvas.height + 20) {
+      if (p.type === "cracked") {
+        // Gets darker/redder the longer the player has stood on it
+        const pctToBreaking = p.standTime / SETTINGS.crackTime;
+        ctx.fillStyle = pctToBreaking > 0.6 ? SETTINGS.brokenColor : SETTINGS.crackedColor;
+      } else {
+        ctx.fillStyle = SETTINGS.platformColor;
+      }
       ctx.fillRect(p.x, screenY, p.width, p.height);
     }
   }
@@ -114,24 +132,93 @@ function drawLava() {
 
 
 // ---------------------------------------------------------
+// 3c. FIREBALLS
+// ---------------------------------------------------------
+// Every SETTINGS.fireballInterval frames, a fireball spawns from a
+// random wall (left or right) at a random height within view, and
+// flies straight across toward the opposite wall.
+function updateFireballs() {
+  fireballTimer++;
+  if (fireballTimer > SETTINGS.fireballInterval) {
+    fireballTimer = 0;
+    spawnFireball();
+  }
+
+  for (const f of fireballs) {
+    f.x += f.vx;
+  }
+
+  // remove fireballs that have flown off the screen
+  fireballs = fireballs.filter((f) => f.x > -50 && f.x < canvas.width + 50);
+}
+
+function spawnFireball() {
+  const fromLeft = Math.random() < 0.5;
+  const worldY = cameraY + Math.random() * canvas.height; // somewhere in view
+  fireballs.push({
+    x: fromLeft ? -SETTINGS.fireballSize : canvas.width + SETTINGS.fireballSize,
+    y: worldY,
+    vx: fromLeft ? SETTINGS.fireballSpeed : -SETTINGS.fireballSpeed,
+  });
+}
+
+function drawFireballs() {
+  ctx.fillStyle = SETTINGS.fireballColor;
+  for (const f of fireballs) {
+    const screenY = f.y - cameraY;
+    ctx.beginPath();
+    ctx.arc(f.x, screenY, SETTINGS.fireballSize, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
+// Simple circle-vs-box check between a fireball and the player.
+function hitsPlayer(f) {
+  const closestX = Math.max(player.x, Math.min(f.x, player.x + player.width));
+  const closestY = Math.max(player.y, Math.min(f.y, player.y + player.height));
+  const dx = f.x - closestX;
+  const dy = f.y - closestY;
+  return dx * dx + dy * dy < SETTINGS.fireballSize * SETTINGS.fireballSize;
+}
+
+
+// ---------------------------------------------------------
 // 4. PLAYER
 // ---------------------------------------------------------
 function createPlayer() {
   player = {
     x: canvas.width / 2 - 15,
-    y: canvas.height - 60,
-    width: 30,
-    height: 30,
+    y: canvas.height - 80,
+    width: 50,
+    height: 50,
     vx: 0,          // horizontal speed
     vy: 0,          // vertical speed
     onGround: false,
+    facing: 1,      // 1 = facing right, -1 = facing left (used to flip the frog sprite)
   };
 }
 
 function drawPlayer() {
-  ctx.fillStyle = SETTINGS.playerColor;
   const screenY = player.y - cameraY;
-  ctx.fillRect(player.x, screenY, player.width, player.height);
+
+  // If the frog image hasn't finished loading yet, fall back to a
+  // plain square so the game still works while it loads.
+  if (!frogImage.complete || frogImage.naturalWidth === 0) {
+    ctx.fillStyle = "#8405be";
+    ctx.fillRect(player.x, screenY, player.width, player.height);
+    return;
+  }
+
+  ctx.save();
+  if (player.facing === -1) {
+    // Flip the sprite horizontally when facing left
+    ctx.translate(player.x + player.width, screenY);
+    ctx.scale(-1, 1);
+    ctx.drawImage(frogImage, 0, 0, player.width, player.height);
+  } else {
+    ctx.drawImage(frogImage, player.x, screenY, player.width, player.height);
+  }
+  ctx.restore();
 }
 
 function updatePlayer() {
@@ -140,6 +227,10 @@ function updatePlayer() {
   if (keys["ArrowLeft"] || keys["a"]) player.vx = -SETTINGS.moveSpeed;
   if (keys["ArrowRight"] || keys["d"]) player.vx = SETTINGS.moveSpeed;
   player.x += player.vx;
+
+  // remember which way the frog is facing so drawPlayer can flip the sprite
+  if (player.vx > 0) player.facing = 1;
+  if (player.vx < 0) player.facing = -1;
 
   // wrap around the sides of the tower (fun optional touch!)
   if (player.x + player.width < 0) player.x = canvas.width;
@@ -153,6 +244,8 @@ function updatePlayer() {
   player.onGround = false;
   if (player.vy > 0) {
     for (const p of platforms) {
+      if (p.broken) continue; // can't land on a platform that's already gone
+
       const withinX = player.x + player.width > p.x && player.x < p.x + p.width;
       const wasAbove = player.y + player.height - player.vy <= p.y;
       const nowBelowTop = player.y + player.height >= p.y;
@@ -160,6 +253,16 @@ function updatePlayer() {
         player.y = p.y - player.height;
         player.vy = 0;
         player.onGround = true;
+
+        // Cracked platforms start counting down the moment you land.
+        // Stand too long and they crumble away beneath you!
+        if (p.type === "cracked") {
+          p.standTime++;
+          if (p.standTime > SETTINGS.crackTime) {
+            p.broken = true;
+            player.onGround = false; // the floor just vanished - start falling again
+          }
+        }
       }
     }
   }
@@ -183,6 +286,13 @@ function updatePlayer() {
   // --- lose condition: the lava caught up to the player ---
   if (player.y + player.height > lavaY) {
     endGame(false, true); // true = died in lava
+  }
+
+  // --- lose condition: hit by a fireball ---
+  for (const f of fireballs) {
+    if (hitsPlayer(f)) {
+      endGame(false, false, true); // third true = died in fire
+    }
   }
 }
 
@@ -209,8 +319,10 @@ function gameLoop() {
 
   updatePlayer();
   updateLava();
+  updateFireballs();
   drawPlatforms();
   drawLava();
+  drawFireballs();
   drawPlayer();
   updateScoreDisplay();
 
@@ -237,7 +349,7 @@ document.addEventListener("keyup", (e) => {
 // ---------------------------------------------------------
 // 7. WIN / LOSE
 // ---------------------------------------------------------
-function endGame(won, diedInLava) {
+function endGame(won, diedInLava, diedInFire) {
   gameOver = true;
   gameWon = won;
 
@@ -246,6 +358,8 @@ function endGame(won, diedInLava) {
     overlayTitle.textContent = "You Reached the Top! 🎉";
   } else if (diedInLava) {
     overlayTitle.textContent = "Swallowed by Lava! 🌋";
+  } else if (diedInFire) {
+    overlayTitle.textContent = "Roasted by a Fireball! 🔥";
   } else {
     overlayTitle.textContent = "You Fell! 💥";
   }
@@ -260,6 +374,8 @@ function startGame() {
   // Start the lava a bit below the bottom of the screen, giving the
   // player a few seconds' head start before it becomes a threat.
   lavaY = canvas.height + 150;
+  fireballs = [];
+  fireballTimer = 0;
   overlay.classList.add("hidden");
   createPlatforms();
   createPlayer();
@@ -268,5 +384,5 @@ function startGame() {
 
 restartBtn.addEventListener("click", startGame);
 
-// Kick things off!
+// Kick things off!ad
 startGame();
